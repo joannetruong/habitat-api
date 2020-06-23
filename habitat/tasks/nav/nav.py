@@ -510,7 +510,7 @@ class Success(Measure):
         if self._sim.previous_step_collided:
             self._count_collisions += 1
 
-        eval_as_gibson=True
+        eval_as_gibson=False
         if eval_as_gibson:
             if (distance_to_target < self._config.SUCCESS_DISTANCE
                 and self._count_collisions <= self._config.MAX_COLLISIONS

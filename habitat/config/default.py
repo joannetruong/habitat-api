@@ -134,6 +134,7 @@ _C.TASK.PROXIMITY_SENSOR.MAX_DETECTION_RADIUS = 2.0
 _C.TASK.SUCCESS = CN()
 _C.TASK.SUCCESS.TYPE = "Success"
 _C.TASK.SUCCESS.SUCCESS_DISTANCE = 0.2
+_C.TASK.SUCCESS.MAX_COLLISIONS = _C.ENVIRONMENT.MAX_EPISODE_STEPS
 # -----------------------------------------------------------------------------
 # SPL MEASUREMENT
 # -----------------------------------------------------------------------------
@@ -144,7 +145,6 @@ _C.TASK.SPL.TYPE = "SPL"
 # -----------------------------------------------------------------------------
 _C.TASK.SOFT_SPL = CN()
 _C.TASK.SOFT_SPL.TYPE = "SoftSPL"
-_C.TASK.SPL.MAX_COLLISIONS = _C.ENVIRONMENT.MAX_EPISODE_STEPS
 # -----------------------------------------------------------------------------
 # TopDownMap MEASUREMENT
 # -----------------------------------------------------------------------------

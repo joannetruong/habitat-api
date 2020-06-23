@@ -1,3 +1,4 @@
+import matplotlib.pyplot as plt
 import argparse
 import os
 from collections import defaultdict
@@ -116,7 +117,8 @@ def get_last_idx(dir_path):
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--model-path", type=str, required=True)
-    parser.add_argument("--noisy", action="store_true")
+#    parser.add_argument("--noisy", action="store_true")
+    parser.add_argument("--noise", type=str, required=True)
     parser.add_argument("--save-imgs", action="store_true")
     parser.add_argument("--save-traj", action="store_true")
     parser.add_argument("--data-split", type=str, required=True)
@@ -145,27 +147,34 @@ def main():
 #    vtorch = "1.2.0"
 #x    assert torch.__version__ == vtorch, "Please use torch {}".format(vtorch)
 
-    if args.noisy:
+    if args.noise == 'all':
         cfg_file = "habitat_baselines/config/pointnav/ddppo_pointnav_coda_noisy.yaml"
+    elif args.noise == 'actuation':
+        cfg_file = "habitat_baselines/config/pointnav/ddppo_pointnav_coda_actuation.yaml"
+    elif args.noise == 'sensors':
+        cfg_file = "habitat_baselines/config/pointnav/ddppo_pointnav_coda_sensors.yaml"
+    elif args.noise == 'no_noise':
+        cfg_file = "habitat_baselines/config/pointnav/ddppo_pointnav_coda_no_noise.yaml"
     else:
-        cfg_file = "habitat_baselines/config/pointnav/ddppo_pointnav_coda.yaml"
-        
+        print('no noise specified. using all noise')
+        cfg_file = "habitat_baselines/config/pointnav/ddppo_pointnav_coda_noisy.yaml"
     config = get_config(
         cfg_file, args.opts
     )
-    datasplit = args.data_split.split('_')[1]
-    split = 'train'
-    if datasplit == 'med':
-        split = 'test'
+    if args.save_traj:
+        datasplit = args.data_split.split('_')[1]
+        split = 'train'
+        if datasplit == 'med':
+            split = 'test'
     if args.save_imgs:
-        if args.noisy:
+        if args.noise!="no_noise":
             depth_save_path = 'depth_' + config.TASK_CONFIG.SIMULATOR.DEPTH_SENSOR.NOISE_MODEL + '_' + split
-            rgb_save_path = 'rgb_' + config.TASK_CONFIG.SIMULATOR.RGB_SENSOR.NOISE_MODEL + '_' + str(config.TASK_CONFIG.SIMULATOR.RGB_SENSOR.NOISE_MODEL_KWARGS.INTENSITY_CONSTANT) + '_' + split
+            rgb_save_path = 'rgb_' + config.TASK_CONFIG.SIMULATOR.RGB_SENSOR.NOISE_MODEL + '_' + str(config.TASK_CONFIG.SIMULATOR.RGB_SENSOR.NOISE_MODEL_KWARGS.intensity_constant) + '_' + split
         else:
             depth_save_path = 'depth_no_noise_' + split
             rgb_save_path = 'rgb_no_noise_' + split
     if args.save_traj:
-        if args.noisy:
+        if args.noise!="no_noise":
             traj_save_path = 'traj_' + config.TASK_CONFIG.SIMULATOR.NOISE_MODEL.CONTROLLER + '_' + str(config.TASK_CONFIG.SIMULATOR.NOISE_MODEL.NOISE_MULTIPLIER) + '_' + split
         else:
             traj_save_path = 'traj_no_noise_' + split
@@ -193,8 +202,8 @@ def main():
         config.defrost()
         config.SENSORS=["DEPTH_SENSOR"]
         config.freeze()
-        envs = construct_envs(config, get_env_class(config.ENV_NAME))
-        sensors_obs = envs.observation_spaces[0]
+        envs2 = construct_envs(config, get_env_class(config.ENV_NAME))
+        sensors_obs = envs2.observation_spaces[0]
 
     device = (
         torch.device("cuda:{}".format(config.TORCH_GPU_ID))
@@ -225,7 +234,6 @@ def main():
 
     print('METRIC UUID: ', metric_uuid)
     observations = envs.reset()
-    
     batch = batch_obs(observations, device)
 
     current_episode_reward = torch.zeros(envs.num_envs, 1, device=device)
@@ -272,7 +280,7 @@ def main():
     tmp_labels_arr = np.array([0, 0, 0])
     prev_base_state = [0, 0, 0]
     num_actions = 0
-    datasplit = args.data_split.split('_')[1]
+#    datasplit = args.data_split.split('_')[1]
     print_once = True
     called_stop = False
 
@@ -333,6 +341,9 @@ def main():
                 final_input_arr = np.vstack((final_input_arr, input_row))
                 tmp_labels_arr = np.vstack((tmp_labels_arr, delta_row))
 
+#            plt.ioff()
+#            _ = plt.hist(observations[i]["depth"].flatten(), bins='auto')
+#            plt.savefig('hist.jpg')
             # TODO: save only good trajectories
             if args.save_imgs:
                 obz = observations[i]

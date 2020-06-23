@@ -57,7 +57,7 @@ python -u evaluation/evaluate_simulation.py \
     --normalize-visual-inputs ${NORMALIZE_VISUAL_INPUTS} \
     --backbone ${BACKBONE} \
     --num-recurrent-layers ${NUM_RECURRENT_LAYERS} \
-    --depth-only\
+#    --depth-only\
     "TEST_EPISODE_COUNT" "20" \
     "TASK_CONFIG.SIMULATOR.ACTION_SPACE_CONFIG" "pyrobotnoisy" \
     "TASK_CONFIG.SIMULATOR.NOISE_MODEL.CONTROLLER" ${TRAJ_NOISE} \
