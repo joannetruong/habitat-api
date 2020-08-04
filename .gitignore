@@ -96,3 +96,4 @@ data
 tb/
 *.csv
 *.zip
+*.pth
