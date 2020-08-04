@@ -11,12 +11,12 @@ parser.add_argument("--outfile", type=str, required=True)
 args = parser.parse_args()
 
 outfile = args.outfile
-# outfile = 'coda_eval_txt/eval_kadian/kadian_noisy_actuation.txt'
+# outfile = 'lab_eval_txt/eval_kadian/kadian_noisy_actuation.txt'
 
-#outfile = 'sim_sensor_imgs/coda_eval_txt/finetune/regression_nn_9.txt'
+#outfile = 'sim_sensor_imgs/lab_eval_txt/finetune/regression_nn_9.txt'
 #outfile = 'results/pi_t_0.15_159_sensors.txt'
-# outfile = 'sim_sensor_imgs/coda_eval_txt/eval_depth_no_noise_vary_0.2/noisy_depth_0.1_gaussian_redwood_0.2_dist_coda_eval_202_sensors.txt'
-# outfile = 'sim_sensor_imgs/coda_eval_txt/eval_depth_no_noise_vary_0.1/noisy_depth_0.1_gaussian_redwood_0.1_dist_coda_eval_341_all.txt'
+# outfile = 'sim_sensor_imgs/lab_eval_txt/eval_depth_no_noise_vary_0.2/noisy_depth_0.1_gaussian_redwood_0.2_dist_lab_eval_202_sensors.txt'
+# outfile = 'sim_sensor_imgs/lab_eval_txt/eval_depth_no_noise_vary_0.1/noisy_depth_0.1_gaussian_redwood_0.1_dist_lab_eval_341_all.txt'
 actions, collisions, successes, agent_ep_dists, final_dists, spls, sspls, stops = [], [], [], [], [], [], [], []
 ep_actions, ep_collisions, ep_success, ep_aed, ep_fdg, ep_spl, ep_sspl, ep_stop, ep_ids = [], [], [], [], [], [], [], [], []
 

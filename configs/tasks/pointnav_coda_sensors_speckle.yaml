@@ -37,6 +37,6 @@ TASK:
 
 DATASET:
   TYPE: PointNav-v1
-  SPLIT: coda_hard_p1
+  SPLIT: lab_hard_p1
   SCENES_DIR: data/scene_datasets
-  DATA_PATH: data/datasets/pointnav/coda/{split}/{split}.json.gz
+  DATA_PATH: data/datasets/pointnav/lab/{split}/{split}.json.gz

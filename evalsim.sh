@@ -13,12 +13,12 @@
 export LD_LIBRARY_PATH="/usr/lib/x86_64-linux-gnu/nvidia-opengl:${LD_LIBRARY_PATH}"
 export GLOG_minloglevel=2
 export MAGNUM_LOG="quiet"
-export PYTHONPATH="${PYTHONPATH}:/srv/share3/jtruong33/develop/sim2real/map_and_plan_agent"
-#export PYTHONPATH="/srv/share3/jtruong33/develop/habitat-sim/:${PYTHONPATH}"
+export PYTHONPATH="${PYTHONPATH}:sim2real/map_and_plan_agent"
+#export PYTHONPATH="habitat-sim/:${PYTHONPATH}"
 # export PYTHONPATH="/private/home/akadian/sim2real/habitat-sim-sliding-on:${PYTHONPATH}"
 
-#MODEL_PATH="/srv/share3/jtruong33/develop/sim2real/models/eval-model-deployment-nov-4-2019/job_19633798.sensor_DEPTH_SENSOR.train_data_gibson.noise_multiplier_0.5.noise_model_controller_Proportional.agent_radius_0.20.success_reward_10.0.slack_reward_-0.01.collision_reward_0.0.spl_max_collisions_500_ckpt.000000059.pth"
-MODEL_PATH="/srv/share3/jtruong33/develop/sim2real/data/new_checkpoints/ddppo_pointnav_no_noise/ckpt.000000399.pth"
+#MODEL_PATH="sim2real/models/eval-model-deployment-nov-4-2019/job_19633798.sensor_DEPTH_SENSOR.train_data_gibson.noise_multiplier_0.5.noise_model_controller_Proportional.agent_radius_0.20.success_reward_10.0.slack_reward_-0.01.collision_reward_0.0.spl_max_collisions_500_ckpt.000000059.pth"
+MODEL_PATH="sim2real/data/new_checkpoints/ddppo_pointnav_no_noise/ckpt.000000399.pth"
 SENSORS="RGB_SENSOR,DEPTH_SENSOR"
 #SENSORS="DEPTH_SENSOR"
 # NOISE_MULTIPLIER="0.0"
@@ -34,10 +34,10 @@ NORMALIZE_VISUAL_INPUTS=1
 VIDEO_DIR="video_dir/no_noise"
 VIDEO_OPTION="[]"
 
-# EPISODE_DATASET_PATH="/srv/share3/jtruong33/develop/sim2real/data/datasets/pointnav/gibson/v1/{split}/{split}.json.gz"
+# EPISODE_DATASET_PATH="sim2real/data/datasets/pointnav/gibson/v1/{split}/{split}.json.gz"
 # EPISODE_DATASET_SPLIT="val"
 
-EPISODE_DATASET_PATH="/srv/share3/jtruong33/develop/sim2real/data/datasets/pointnav/coda/{split}/{split}.json.gz"
+EPISODE_DATASET_PATH="sim2real/data/datasets/pointnav/lab/{split}/{split}.json.gz"
 EPISODE_DATASET_SPLIT=$1
 
 RGB_NOISE=$2

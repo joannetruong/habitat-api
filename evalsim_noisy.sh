@@ -3,7 +3,7 @@
 export LD_LIBRARY_PATH="/usr/lib/x86_64-linux-gnu/nvidia-opengl:${LD_LIBRARY_PATH}"
 export GLOG_minloglevel=2
 export MAGNUM_LOG="quiet"
-#export PYTHONPATH="${PYTHONPATH}:/srv/share3/jtruong33/develop/sim2real/map_and_plan_agent"
+#export PYTHONPATH="${PYTHONPATH}:sim2real/map_and_plan_agent"
 
 #MODEL_PATH="data/checkpoints/pi_s_0.15_212.14.122.pth"
 ### PI_S_0.15 ###
@@ -89,10 +89,10 @@ NUM_RECURRENT_LAYERS=2
 NORMALIZE_VISUAL_INPUTS=0
 MAX_COLLISIONS="40"
 
-# EPISODE_DATASET_PATH="/srv/share3/jtruong33/develop/sim2real/data/datasets/pointnav/gibson/v1/{split}/{split}.json.gz"
+# EPISODE_DATASET_PATH="sim2real/data/datasets/pointnav/gibson/v1/{split}/{split}.json.gz"
 # EPISODE_DATASET_SPLIT="val"
 
-EPISODE_DATASET_PATH="data/datasets/pointnav/coda/{split}/{split}.json.gz"
+EPISODE_DATASET_PATH="data/datasets/pointnav/lab/{split}/{split}.json.gz"
 EPISODE_DATASET_SPLIT=$1
 RUN=$2
 #VIDEO_OPTION="['disk']"
@@ -100,7 +100,7 @@ VIDEO_OPTION="[]"
 VIDEO_DIR="videos/test/${EPISODE_DATASET_SPLIT}_${RUN}"
 NOISE="all"
 
-python -u evaluation/evaluate_simulation_coda.py \
+python -u evaluation/evaluate_simulation_lab.py \
     --model-path ${MODEL_PATH} \
     --data-split ${EPISODE_DATASET_SPLIT} \
     --sensors ${SENSORS} \

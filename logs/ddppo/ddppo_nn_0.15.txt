@@ -1,3 +1,0 @@
-srun: unrecognized option '--dist-url'
-srun: unrecognized option '--dist-url'
-Try "srun --help" for more information

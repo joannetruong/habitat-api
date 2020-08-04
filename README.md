@@ -2,6 +2,11 @@
 [![codecov](https://codecov.io/gh/facebookresearch/habitat-api/branch/master/graph/badge.svg)](https://codecov.io/gh/facebookresearch/habitat-api)
 [![GitHub license](https://img.shields.io/badge/license-MIT-blue.svg)](https://github.com/facebookresearch/habitat-api/blob/master/LICENSE)
 
+Bi-directional Domain Adaptation for Sim2Real Transfer of Embodied Navigation Agents
+==============================
+To train:
+` python -u -m habitat_baselines.run --exp-config habitat_baselines/config/pointnav/ddppo_pointnav_0.15_noisy_rgbd.yaml --run-type train`
+
 Habitat-API
 ==============================
 
