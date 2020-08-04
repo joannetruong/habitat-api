@@ -90,7 +90,6 @@ data
 
 *.mp4
 *.sh
-*.yaml
 *.npy
 *.jpg
 tb/
