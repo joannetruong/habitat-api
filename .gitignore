@@ -89,7 +89,6 @@ data
 *.swp
 
 *.mp4
-*.sh
 *.npy
 *.jpg
 tb/

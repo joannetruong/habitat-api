@@ -5,8 +5,19 @@
 Bi-directional Domain Adaptation for Sim2Real Transfer of Embodied Navigation Agents
 ==============================
 To train:
+
 ` python -u -m habitat_baselines.run --exp-config habitat_baselines/config/pointnav/ddppo_pointnav_0.15_noisy_rgbd.yaml --run-type train`
 
+
+To evaluate:
+
+`./batch_job_rgbd.sh`
+
+To collect RGBD images/ trajectories:
+
+`./batch_collect_data_gen.sh`
+
+ 
 Habitat-API
 ==============================
 
