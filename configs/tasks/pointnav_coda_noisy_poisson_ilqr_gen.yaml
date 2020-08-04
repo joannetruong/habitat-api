@@ -1,0 +1,45 @@
+ENVIRONMENT:
+  MAX_EPISODE_STEPS: 200
+  GENERATE_ON_FLY: True
+SIMULATOR:
+  AGENT_0:
+    SENSORS: ['DEPTH_SENSOR']
+  HABITAT_SIM_V0:
+    GPU_DEVICE_ID: 0
+  RGB_SENSOR:
+    WIDTH: 640
+    HEIGHT: 360
+    HFOV: 70
+    NOISE_MODEL: "PoissonNoiseModel"
+  DEPTH_SENSOR:
+    WIDTH: 640
+    HEIGHT: 360
+    HFOV: 70
+    NOISE_MODEL: "RedwoodDepthNoiseModel"
+    NOISE_MODEL_KWARGS:
+        noise_multiplier: 2.0
+  ACTION_SPACE_CONFIG: 'pyrobotnoisy'
+  NOISE_MODEL:
+    ROBOT: "LoCoBot"
+    CONTROLLER: 'ILQR'
+    NOISE_MULTIPLIER: 1.0
+TASK:
+  TYPE: Nav-v0
+  SUCCESS_DISTANCE: 0.2
+
+  SENSORS: ['POINTGOAL_WITH_GPS_COMPASS_SENSOR']
+  POINTGOAL_WITH_GPS_COMPASS_SENSOR:
+    GOAL_FORMAT: "POLAR"
+    DIMENSIONALITY: 2
+  GOAL_SENSOR_UUID: pointgoal_with_gps_compass
+
+  MEASUREMENTS: ['DISTANCE_TO_GOAL', 'SUCCESS', 'SPL', 'COLLISIONS']
+  SUCCESS:
+    SUCCESS_DISTANCE: 0.2
+    MAX_COLLISIONS: 40
+
+DATASET:
+  TYPE: PointNav-v1
+  SPLIT: coda_hard_p1
+  SCENES_DIR: data/scene_datasets
+  DATA_PATH: data/datasets/pointnav/coda/{split}/{split}.json.gz
