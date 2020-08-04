@@ -323,8 +323,19 @@ def main():
     ):
         current_episodes = envs.current_episodes()
         if print_once:
-            print("Ep_id: ", current_episodes[0].episode_id, "Start_pos: ", current_episodes[0].start_position, current_episodes[0].start_rotation, "Goal_pos: ", current_episodes[0].goals[0].position)
+            print("scene: ", current_episodes[0].scene_id, "Ep_id: ", current_episodes[0].episode_id, "Start_pos: ", current_episodes[0].start_position, current_episodes[0].start_rotation, "Goal_pos: ", current_episodes[0].goals[0].position)
             print_once = False
+            if args.save_imgs:
+                obz = observations[0]
+                depth_obs = obz["depth"]    
+                depth_obs = np.squeeze(depth_obs)
+                depth_img = Image.fromarray((depth_obs * 255).astype(np.uint8), mode="L")
+                depth_img.save(os.path.join(depth_dir, "depth_" + "%05d"%img_ctr + ".jpg"), "JPEG")
+
+                rgb_obs = obz["rgb"]
+                rgb_img = Image.fromarray(rgb_obs, mode="RGB")
+                rgb_img.save(os.path.join(rgb_dir, "rgb_" + "%05d"%img_ctr + ".jpg"), "JPEG")
+                img_ctr +=1
 
         with torch.no_grad():
             _, actions, _, test_recurrent_hidden_states = model.act(
@@ -370,7 +381,8 @@ def main():
             delta_row = np.subtract(curr_state, prev_base_state)
             prev_base_state = curr_state
 
-            print(input_row + [int(infos[i]["collisions"]["is_collision"])])
+            print(img_ctr, infos[i]["base_state"]['position'], infos[i]["base_state"]['rotation'])
+#            print(input_row + [int(infos[i]["collisions"]["is_collision"])])
             if int(infos[i]["collisions"]["is_collision"]) == 0:
                 final_input_arr = np.vstack((final_input_arr, input_row))
                 tmp_labels_arr = np.vstack((tmp_labels_arr, delta_row))

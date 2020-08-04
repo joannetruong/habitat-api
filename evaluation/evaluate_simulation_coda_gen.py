@@ -129,7 +129,6 @@ def main():
         "--normalize-visual-inputs", type=int, required=True, choices=[0, 1]
     )
     parser.add_argument("--depth-only", action="store_true")
-    parser.add_argument("--gen", action="store_true")
     parser.add_argument(
         "--backbone",
         type=str,
@@ -151,8 +150,6 @@ def main():
     if args.noise_type == 'poisson_ilqr':
         if args.noise == 'all':
             cfg_file = "habitat_baselines/config/pointnav/ddppo_pointnav_coda_noisy_poisson_ilqr.yaml"
-            if args.gen:
-                cfg_file="habitat_baselines/config/pointnav/ddppo_pointnav_coda_noisy_poisson_ilqr_gen.yaml"
         elif args.noise == 'actuation':
             cfg_file = "habitat_baselines/config/pointnav/ddppo_pointnav_coda_actuation_ilqr.yaml"
         elif args.noise == 'sensors':
@@ -179,8 +176,6 @@ def main():
     elif args.noise_type == 'gaussian_proportional':
         if args.noise == 'all':
             cfg_file = "habitat_baselines/config/pointnav/ddppo_pointnav_coda_noisy_gaussian_proportional.yaml"
-            if args.gen:
-                cfg_file="habitat_baselines/config/pointnav/ddppo_pointnav_coda_noisy_gaussian_proportional_gen.yaml"
         elif args.noise == 'actuation':
             cfg_file = "habitat_baselines/config/pointnav/ddppo_pointnav_coda_actuation_proportional.yaml"
         elif args.noise == 'sensors':
@@ -199,11 +194,10 @@ def main():
         if datasplit == 'med':
             split = 'test'
     if args.save_imgs:
-        if not args.save_traj:
-            split='train'
+        split='train'
         if args.noise!="no_noise":
             depth_save_path = 'depth_' + config.TASK_CONFIG.SIMULATOR.DEPTH_SENSOR.NOISE_MODEL + '_' + split
-            rgb_save_path = 'rgb_' + config.TASK_CONFIG.SIMULATOR.RGB_SENSOR.NOISE_MODEL + '_' + split
+            rgb_save_path = 'rgb_' + config.TASK_CONFIG.SIMULATOR.RGB_SENSOR.NOISE_MODEL + '_' + str(config.TASK_CONFIG.SIMULATOR.RGB_SENSOR.NOISE_MODEL_KWARGS.intensity_constant) + '_' + split
         else:
             depth_save_path = 'depth_no_noise_' + split
             rgb_save_path = 'rgb_no_noise_' + split
@@ -293,7 +287,7 @@ def main():
     if len(config.VIDEO_OPTION) > 0:
         os.makedirs(config.VIDEO_DIR, exist_ok=True)
 
-    sensor_path = 'sim_sensor_imgs'
+    sensor_path = 'sim_sensor_imgs_gen'
     traj_path = 'sim_traj'
     if args.save_imgs:
         depth_dir = os.path.join(sensor_path, depth_save_path)

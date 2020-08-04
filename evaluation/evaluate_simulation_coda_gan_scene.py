@@ -21,6 +21,7 @@ from habitat_baselines.config.default import get_config
 from habitat_sim import geo
 from habitat_sim.utils.common import quat_from_two_vectors, quat_rotate_vector
 from PIL import Image
+from predictor import Predictor
 
 
 def quat_to_rad(rotation):
@@ -124,12 +125,13 @@ def main():
     parser.add_argument("--data-split", type=str, required=True)
     parser.add_argument("--sensors", type=str, required=True)
     parser.add_argument("--hidden-size", type=int, required=True)
-    parser.add_argument("--noise-type", type=str, required=True)
     parser.add_argument(
         "--normalize-visual-inputs", type=int, required=True, choices=[0, 1]
     )
     parser.add_argument("--depth-only", action="store_true")
-    parser.add_argument("--gen", action="store_true")
+    parser.add_argument("--use-gan", action="store_true")
+    parser.add_argument("--gan-weights", type=str, required=False)
+    parser.add_argument("--noise-type", type=str, required=True)
     parser.add_argument(
         "--backbone",
         type=str,
@@ -151,8 +153,6 @@ def main():
     if args.noise_type == 'poisson_ilqr':
         if args.noise == 'all':
             cfg_file = "habitat_baselines/config/pointnav/ddppo_pointnav_coda_noisy_poisson_ilqr.yaml"
-            if args.gen:
-                cfg_file="habitat_baselines/config/pointnav/ddppo_pointnav_coda_noisy_poisson_ilqr_gen.yaml"
         elif args.noise == 'actuation':
             cfg_file = "habitat_baselines/config/pointnav/ddppo_pointnav_coda_actuation_ilqr.yaml"
         elif args.noise == 'sensors':
@@ -165,8 +165,6 @@ def main():
     elif args.noise_type == 'speckle_mb':
         if args.noise == 'all':
             cfg_file = "habitat_baselines/config/pointnav/ddppo_pointnav_coda_noisy_speckle_mb.yaml"
-            if args.gen:
-                cfg_file="habitat_baselines/config/pointnav/ddppo_pointnav_coda_noisy_speckle_mb_gen.yaml"
         elif args.noise == 'actuation':
             cfg_file = "habitat_baselines/config/pointnav/ddppo_pointnav_coda_actuation_mb.yaml"
         elif args.noise == 'sensors':
@@ -179,8 +177,6 @@ def main():
     elif args.noise_type == 'gaussian_proportional':
         if args.noise == 'all':
             cfg_file = "habitat_baselines/config/pointnav/ddppo_pointnav_coda_noisy_gaussian_proportional.yaml"
-            if args.gen:
-                cfg_file="habitat_baselines/config/pointnav/ddppo_pointnav_coda_noisy_gaussian_proportional_gen.yaml"
         elif args.noise == 'actuation':
             cfg_file = "habitat_baselines/config/pointnav/ddppo_pointnav_coda_actuation_proportional.yaml"
         elif args.noise == 'sensors':
@@ -199,10 +195,10 @@ def main():
         if datasplit == 'med':
             split = 'test'
     if args.save_imgs:
-        if not args.save_traj:
-            split='train'
+        split = 'train'
         if args.noise!="no_noise":
             depth_save_path = 'depth_' + config.TASK_CONFIG.SIMULATOR.DEPTH_SENSOR.NOISE_MODEL + '_' + split
+#            rgb_save_path = 'rgb_' + config.TASK_CONFIG.SIMULATOR.RGB_SENSOR.NOISE_MODEL + '_' + str(config.TASK_CONFIG.SIMULATOR.RGB_SENSOR.NOISE_MODEL_KWARGS.intensity_constant) + '_' + split
             rgb_save_path = 'rgb_' + config.TASK_CONFIG.SIMULATOR.RGB_SENSOR.NOISE_MODEL + '_' + split
         else:
             depth_save_path = 'depth_no_noise_' + split
@@ -256,6 +252,9 @@ def main():
         device=device,
     )
     model.eval()
+
+    if args.use_gan:
+        predictor = Predictor(args.gan_weights)
     print('METRICS: ', config.TASK_CONFIG.TASK.MEASUREMENTS)
 
     metric_name = "SPL"
@@ -268,6 +267,19 @@ def main():
 
     print('METRIC UUID: ', metric_uuid)
     observations = envs.reset()
+    print('IMAGE TYPE: ' , observations[0]["rgb"].dtype, observations[0]["depth"].dtype)
+#    print(observations[0]["rgb"], observations[0]["depth"])
+    rgbd_img = np.dstack((observations[0]["rgb"], (observations[0]["depth"]*255).astype(np.uint8)))
+    gan_observations = predictor(rgbd_img)
+    observations[0]["depth"] = np.expand_dims((gan_observations[:,:,-1]/255).astype(np.float32), axis=2)
+#    print('IMAGE TYPE: ' , observations[0]["rgb"].dtype, observations[0]["depth"].dtype)
+#    print(observations[0]["rgb"], observations[0]["depth"])
+    #observations[0]["rgb"] = gan_observations[:,:,:3][...,::-1]
+    if args.depth_only:
+        del observations[0]["rgb"]
+    else:
+#        print('GAN TYPE: ', gan_observations[:,:,:3][...,::-1].dtype)
+        observations[0]["rgb"] = gan_observations[:,:,:3][...,::-1]
     batch = batch_obs(observations, device)
 
     current_episode_reward = torch.zeros(envs.num_envs, 1, device=device)
@@ -325,6 +337,31 @@ def main():
         if print_once:
             print("Ep_id: ", current_episodes[0].episode_id, "Start_pos: ", current_episodes[0].start_position, current_episodes[0].start_rotation, "Goal_pos: ", current_episodes[0].goals[0].position)
             print_once = False
+#        if args.save_imgs:
+#            depth_obs = observations[0]["depth"]    
+#            depth_obs = np.squeeze(depth_obs)
+#            depth_img = Image.fromarray((depth_obs * 255).astype(np.uint8), mode="L")
+#            depth_img.save(os.path.join(depth_dir, "real_depth_" + "%05d"%img_ctr + ".jpg"), "JPEG")
+
+#            rgb_obs = observations[0]["rgb"]
+#            rgb_img = Image.fromarray(rgb_obs, mode="RGB")
+#            rgb_img.save(os.path.join(rgb_dir, "real_rgb_" + "%05d"%img_ctr + ".jpg"), "JPEG")
+        rgbd_img = np.dstack((observations[0]["rgb"], (observations[0]["depth"]*255).astype(np.uint8)))
+        gan_observations = predictor(rgbd_img)
+        observations[0]["rgb"] = gan_observations[:,:,:3][...,::-1]
+        observations[0]["depth"] = np.expand_dims((gan_observations[:,:,-1]/255).astype(np.float32), axis=2)
+        if args.save_imgs:
+            depth_obs = observations[0]["depth"]    
+            depth_obs = np.squeeze(depth_obs)
+            depth_img = Image.fromarray((depth_obs * 255).astype(np.uint8), mode="L")
+            depth_img.save(os.path.join(depth_dir, "sim_depth_" + "%05d"%img_ctr + ".jpg"), "JPEG")
+
+            rgb_obs = observations[0]["rgb"]
+            rgb_img = Image.fromarray(rgb_obs, mode="RGB")
+            rgb_img.save(os.path.join(rgb_dir, "sim_rgb_" + "%05d"%img_ctr + ".jpg"), "JPEG")
+            img_ctr +=1
+        if args.depth_only:
+            del observations[0]["rgb"]
 
         with torch.no_grad():
             _, actions, _, test_recurrent_hidden_states = model.act(
@@ -379,17 +416,6 @@ def main():
 #            _ = plt.hist(observations[i]["depth"].flatten(), bins='auto')
 #            plt.savefig('hist.jpg')
             # TODO: save only good trajectories
-            if args.save_imgs:
-                obz = observations[i]
-                depth_obs = obz["depth"]    
-                depth_obs = np.squeeze(depth_obs)
-                depth_img = Image.fromarray((depth_obs * 255).astype(np.uint8), mode="L")
-                depth_img.save(os.path.join(depth_dir, "depth_" + "%05d"%img_ctr + ".jpg"), "JPEG")
-
-                rgb_obs = obz["rgb"]
-                rgb_img = Image.fromarray(rgb_obs, mode="RGB")
-                rgb_img.save(os.path.join(rgb_dir, "rgb_" + "%05d"%img_ctr + ".jpg"), "JPEG")
-                img_ctr +=1
 
             # episode ended
             if not_done_masks[i].item() == 0:

@@ -131,6 +131,7 @@ def main():
     parser.add_argument("--depth-only", action="store_true")
     parser.add_argument("--use-gan", action="store_true")
     parser.add_argument("--gan-weights", type=str, required=False)
+    parser.add_argument("--noise-type", type=str, required=True)
     parser.add_argument(
         "--backbone",
         type=str,
@@ -149,18 +150,42 @@ def main():
     # Check torch version
 #    vtorch = "1.2.0"
 #x    assert torch.__version__ == vtorch, "Please use torch {}".format(vtorch)
-
-    if args.noise == 'all':
-        cfg_file = "habitat_baselines/config/pointnav/ddppo_pointnav_coda_noisy.yaml"
-    elif args.noise == 'actuation':
-        cfg_file = "habitat_baselines/config/pointnav/ddppo_pointnav_coda_actuation.yaml"
-    elif args.noise == 'sensors':
-        cfg_file = "habitat_baselines/config/pointnav/ddppo_pointnav_coda_sensors.yaml"
-    elif args.noise == 'no_noise':
-        cfg_file = "habitat_baselines/config/pointnav/ddppo_pointnav_coda_no_noise.yaml"
-    else:
-        print('no noise specified. using all noise')
-        cfg_file = "habitat_baselines/config/pointnav/ddppo_pointnav_coda_noisy.yaml"
+    if args.noise_type == 'poisson_ilqr':
+        if args.noise == 'all':
+            cfg_file = "habitat_baselines/config/pointnav/ddppo_pointnav_coda_noisy_poisson_ilqr.yaml"
+        elif args.noise == 'actuation':
+            cfg_file = "habitat_baselines/config/pointnav/ddppo_pointnav_coda_actuation_ilqr.yaml"
+        elif args.noise == 'sensors':
+            cfg_file = "habitat_baselines/config/pointnav/ddppo_pointnav_coda_sensors_poisson.yaml"
+        elif args.noise == 'no_noise':
+            cfg_file = "habitat_baselines/config/pointnav/ddppo_pointnav_coda_no_noise.yaml"
+        else:
+            print('no noise specified. using all noise')
+            cfg_file = "habitat_baselines/config/pointnav/ddppo_pointnav_coda_noisy_poisson_ilqr.yaml"
+    elif args.noise_type == 'speckle_mb':
+        if args.noise == 'all':
+            cfg_file = "habitat_baselines/config/pointnav/ddppo_pointnav_coda_noisy_speckle_mb.yaml"
+        elif args.noise == 'actuation':
+            cfg_file = "habitat_baselines/config/pointnav/ddppo_pointnav_coda_actuation_mb.yaml"
+        elif args.noise == 'sensors':
+            cfg_file = "habitat_baselines/config/pointnav/ddppo_pointnav_coda_sensors_speckle.yaml"
+        elif args.noise == 'no_noise':
+            cfg_file = "habitat_baselines/config/pointnav/ddppo_pointnav_coda_no_noise.yaml"
+        else:
+            print('no noise specified. using all noise')
+            cfg_file = "habitat_baselines/config/pointnav/ddppo_pointnav_coda_noisy_poisson_ilqr.yaml"
+    elif args.noise_type == 'gaussian_proportional':
+        if args.noise == 'all':
+            cfg_file = "habitat_baselines/config/pointnav/ddppo_pointnav_coda_noisy_gaussian_proportional.yaml"
+        elif args.noise == 'actuation':
+            cfg_file = "habitat_baselines/config/pointnav/ddppo_pointnav_coda_actuation_proportional.yaml"
+        elif args.noise == 'sensors':
+            cfg_file = "habitat_baselines/config/pointnav/ddppo_pointnav_coda_sensors_gaussian.yaml"
+        elif args.noise == 'no_noise':
+            cfg_file = "habitat_baselines/config/pointnav/ddppo_pointnav_coda_no_noise.yaml"
+        else:
+            print('no noise specified. using all noise')
+            cfg_file = "habitat_baselines/config/pointnav/ddppo_pointnav_coda_noisy_gaussian_proportional.yaml"
     config = get_config(
         cfg_file, args.opts
     )
@@ -251,7 +276,7 @@ def main():
     if args.depth_only:
         del observations[0]["rgb"]
     else:
-        print('GAN TYPE: ', gan_observations[:,:,:3][...,::-1].dtype)
+#        print('GAN TYPE: ', gan_observations[:,:,:3][...,::-1].dtype)
         observations[0]["rgb"] = gan_observations[:,:,:3][...,::-1]
     batch = batch_obs(observations, device)
 
