@@ -24,9 +24,10 @@ RUN=$2
 VIDEO_OPTION="[]"
 VIDEO_DIR="videos/test/${EPISODE_DATASET_SPLIT}_${RUN}"
 NOISE="sensors"
-NOISE_TYPE=$4
+GAN_WEIGHTS=$4
+NOISE_TYPE=$5
 
-python -u evaluation/evaluate_simulation_coda.py \
+python -u evaluation/evaluate_simulation_coda_gan.py \
     --model-path ${MODEL_PATH} \
     --data-split ${EPISODE_DATASET_SPLIT} \
     --sensors ${SENSORS} \
@@ -36,6 +37,8 @@ python -u evaluation/evaluate_simulation_coda.py \
     --num-recurrent-layers ${NUM_RECURRENT_LAYERS} \
     --noise ${NOISE}\
     --noise-type ${NOISE_TYPE}\
+    --use-gan\
+    --gan-weights ${GAN_WEIGHTS}\
     "TEST_EPISODE_COUNT" "5" \
     "TASK_CONFIG.TASK.SUCCESS.MAX_COLLISIONS" ${MAX_COLLISIONS} \
     "TASK_CONFIG.DATASET.DATA_PATH" ${EPISODE_DATASET_PATH} \

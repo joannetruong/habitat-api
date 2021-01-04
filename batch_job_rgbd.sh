@@ -1,9 +1,9 @@
 #!/bin/bash
 
-NOISE_TYPE="gaussian_proportional"
+NOISE_TYPE="poisson_ilqr"
 
-MODEL_PATH="data/checkpoints/ddppo_gibson_noise_0.15_ft_rect_v2_rgbd_v3/ckpt.30.8.027109176569303.pth"
-./batch_evalsim_lab_no_noise_rgbd.sh ${MODEL_PATH} ${NOISE_TYPE} | tee results/rgbd_rect_0.15/pi_ft_30/pi_ft_0.15_30_no_noise.txt
-./batch_evalsim_lab_sensors_rgbd.sh ${MODEL_PATH} ${NOISE_TYPE} | tee results/rgbd_rect_0.15/pi_ft_30/pi_ft_0.15_30_sensor_noise.txt
-./batch_evalsim_lab_actuation_rgbd.sh ${MODEL_PATH} ${NOISE_TYPE} | tee results/rgbd_rect_0.15/pi_ft_30/pi_ft_0.15_30_actuation_noise.txt
-./batch_evalsim_lab_noisy_rgbd.sh ${MODEL_PATH} ${NOISE_TYPE} | tee results/rgbd_rect_0.15/pi_ft_30/pi_ft_0.15_30_all_noise.txt
+MODEL_PATH="data/checkpoints/bda/poisson_ilqr/pi_r/ckpt.25.8.357177307529993.pth"
+./batch_evalsim_coda_no_noise_rgbd.sh ${MODEL_PATH} ${NOISE_TYPE} | tee results/rgbd_rect_0.15_poisson_speckle/pi_r_0.15_act/pi_r_0.15_25_no_noise.txt
+./batch_evalsim_coda_sensors_rgbd.sh ${MODEL_PATH} ${NOISE_TYPE} | tee results/rgbd_rect_0.15_poisson_speckle/pi_r_0.15_act/pi_r_0.15_5_sensor_noise.txt
+./batch_evalsim_coda_actuation_rgbd.sh ${MODEL_PATH} ${NOISE_TYPE} | tee results/rgbd_rect_0.15_poisson_speckle/pi_r_0.15_act/pi_r_0.15_25_actuation_noise.txt
+./batch_evalsim_coda_noisy_rgbd.sh ${MODEL_PATH} ${NOISE_TYPE} | tee results/rgbd_rect_0.15_poisson_speckle/pi_r_0.15_act/pi_r_0.15_25_all_noise.txt

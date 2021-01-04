@@ -6,12 +6,12 @@ export MAGNUM_LOG="quiet"
 #export PYTHONPATH="${PYTHONPATH}:/srv/share3/jtruong33/develop/sim2real/map_and_plan_agent"
 
 MODEL_PATH=$3
-SENSORS="RGB_SENSOR,DEPTH_SENSOR"
-#SENSORS="DEPTH_SENSOR"
+#SENSORS="RGB_SENSOR,DEPTH_SENSOR"
+SENSORS="DEPTH_SENSOR"
 BACKBONE="resnet50"
 HIDDEN_SIZE=512
 NUM_RECURRENT_LAYERS=2
-NORMALIZE_VISUAL_INPUTS=1
+NORMALIZE_VISUAL_INPUTS=0
 MAX_COLLISIONS="40"
 
 # EPISODE_DATASET_PATH="/srv/share3/jtruong33/develop/sim2real/data/datasets/pointnav/gibson/v1/{split}/{split}.json.gz"
@@ -23,7 +23,7 @@ RUN=$2
 #VIDEO_OPTION="['disk']"
 VIDEO_OPTION="[]"
 VIDEO_DIR="videos/test/${EPISODE_DATASET_SPLIT}_${RUN}"
-NOISE="sensors"
+NOISE="no_noise"
 NOISE_TYPE=$4
 
 python -u evaluation/evaluate_simulation_coda.py \

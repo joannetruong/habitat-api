@@ -14,19 +14,17 @@ NUM_RECURRENT_LAYERS=2
 NORMALIZE_VISUAL_INPUTS=1
 MAX_COLLISIONS="40"
 
-# EPISODE_DATASET_PATH="/srv/share3/jtruong33/develop/sim2real/data/datasets/pointnav/gibson/v1/{split}/{split}.json.gz"
-# EPISODE_DATASET_SPLIT="val"
-
-EPISODE_DATASET_PATH="data/datasets/pointnav/coda/{split}/{split}.json.gz"
+EPISODE_DATASET_PATH="data/datasets/pointnav/gibson/v1/test/{split}.json.gz"
 EPISODE_DATASET_SPLIT=$1
 RUN=$2
 #VIDEO_OPTION="['disk']"
 VIDEO_OPTION="[]"
 VIDEO_DIR="videos/test/${EPISODE_DATASET_SPLIT}_${RUN}"
-NOISE="sensors"
-NOISE_TYPE=$4
+NOISE="all"
+GAN_WEIGHTS=$4
+NOISE_TYPE=$5
 
-python -u evaluation/evaluate_simulation_coda.py \
+python -u evaluation/evaluate_simulation_gibson_gan.py \
     --model-path ${MODEL_PATH} \
     --data-split ${EPISODE_DATASET_SPLIT} \
     --sensors ${SENSORS} \
@@ -36,7 +34,9 @@ python -u evaluation/evaluate_simulation_coda.py \
     --num-recurrent-layers ${NUM_RECURRENT_LAYERS} \
     --noise ${NOISE}\
     --noise-type ${NOISE_TYPE}\
-    "TEST_EPISODE_COUNT" "5" \
+    --use-gan\
+    --gan-weights ${GAN_WEIGHTS}\
+    "TEST_EPISODE_COUNT" "70" \
     "TASK_CONFIG.TASK.SUCCESS.MAX_COLLISIONS" ${MAX_COLLISIONS} \
     "TASK_CONFIG.DATASET.DATA_PATH" ${EPISODE_DATASET_PATH} \
     "TASK_CONFIG.DATASET.SPLIT" ${EPISODE_DATASET_SPLIT} \

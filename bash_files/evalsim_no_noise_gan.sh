@@ -11,7 +11,7 @@ SENSORS="RGB_SENSOR,DEPTH_SENSOR"
 BACKBONE="resnet50"
 HIDDEN_SIZE=512
 NUM_RECURRENT_LAYERS=2
-NORMALIZE_VISUAL_INPUTS=1
+NORMALIZE_VISUAL_INPUTS=0
 MAX_COLLISIONS="40"
 
 # EPISODE_DATASET_PATH="/srv/share3/jtruong33/develop/sim2real/data/datasets/pointnav/gibson/v1/{split}/{split}.json.gz"
@@ -23,10 +23,11 @@ RUN=$2
 #VIDEO_OPTION="['disk']"
 VIDEO_OPTION="[]"
 VIDEO_DIR="videos/test/${EPISODE_DATASET_SPLIT}_${RUN}"
-NOISE="sensors"
-NOISE_TYPE=$4
+NOISE="no_noise"
+NOISE_TYPE=$5
+GAN_WEIGHTS=$4
 
-python -u evaluation/evaluate_simulation_coda.py \
+python -u evaluation/evaluate_simulation_coda_gan.py \
     --model-path ${MODEL_PATH} \
     --data-split ${EPISODE_DATASET_SPLIT} \
     --sensors ${SENSORS} \
@@ -36,6 +37,9 @@ python -u evaluation/evaluate_simulation_coda.py \
     --num-recurrent-layers ${NUM_RECURRENT_LAYERS} \
     --noise ${NOISE}\
     --noise-type ${NOISE_TYPE}\
+    --depth-only\
+    --use-gan\
+    --gan-weights ${GAN_WEIGHTS}\
     "TEST_EPISODE_COUNT" "5" \
     "TASK_CONFIG.TASK.SUCCESS.MAX_COLLISIONS" ${MAX_COLLISIONS} \
     "TASK_CONFIG.DATASET.DATA_PATH" ${EPISODE_DATASET_PATH} \

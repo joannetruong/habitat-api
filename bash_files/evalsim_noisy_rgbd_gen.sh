@@ -23,7 +23,7 @@ RUN=$2
 #VIDEO_OPTION="['disk']"
 VIDEO_OPTION="[]"
 VIDEO_DIR="videos/test/${EPISODE_DATASET_SPLIT}_${RUN}"
-NOISE="sensors"
+NOISE="all"
 NOISE_TYPE=$4
 
 python -u evaluation/evaluate_simulation_coda.py \
@@ -36,6 +36,9 @@ python -u evaluation/evaluate_simulation_coda.py \
     --num-recurrent-layers ${NUM_RECURRENT_LAYERS} \
     --noise ${NOISE}\
     --noise-type ${NOISE_TYPE}\
+    --gen\
+    --save-imgs\
+    --save-traj\
     "TEST_EPISODE_COUNT" "5" \
     "TASK_CONFIG.TASK.SUCCESS.MAX_COLLISIONS" ${MAX_COLLISIONS} \
     "TASK_CONFIG.DATASET.DATA_PATH" ${EPISODE_DATASET_PATH} \
