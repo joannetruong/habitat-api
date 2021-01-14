@@ -11,20 +11,9 @@ parser.add_argument("--outfile", type=str, required=True)
 args = parser.parse_args()
 
 outfile = args.outfile
-all_successes, all_std_spls, all_spls, all_sspls, all_fdg, all_actions, all_collisions, all_stop, all_aed = [], [], [], [], [], [], [], [], []
-
-txt_files = ["", "", "", ""]
+all_successes, all_spls, all_sspls, all_fdg, all_actions, all_collisions, all_stop, all_aed = [], [], [], [], [], [], [], []
+gan_idx = []
 for filename in os.listdir(outfile):
-    if filename.endswith("no_noise.txt"): 
-        txt_files[0] = filename
-    elif filename.endswith("sensor_noise.txt"): 
-        txt_files[1] = filename
-    elif filename.endswith("actuation_noise.txt"): 
-        txt_files[2] = filename
-    elif filename.endswith("all_noise.txt"): 
-        txt_files[3] = filename
-print(txt_files)
-for filename in txt_files:
     print(os.path.join(outfile, filename))
     actions, collisions, successes, agent_ep_dists, final_dists, spls, sspls, stops = [], [], [], [], [], [], [], []
     ep_actions, ep_collisions, ep_success, ep_aed, ep_fdg, ep_spl, ep_sspl, ep_stop, ep_ids = [], [], [], [], [], [], [], [], []
@@ -59,25 +48,10 @@ for filename in txt_files:
             elif line.startswith('Called Stop:'):
                 called_stop = line.split(':')[-1]
                 ep_stop.append(called_stop == " True\n")
-    filter_idx = []
-#    for idx, s in enumerate(spls[0]):
-#        if np.isnan(s):
-#            filter_idx.append(idx)
-#    print(filter_idx)
-#    print('before filter: ', len(successes[0]))
-#    successes = [e for i, e in enumerate(successes[0]) if i not in filter_idx]
-#    spls = [e for i, e in enumerate(spls[0]) if i not in filter_idx]
-#    sspls = [e for i, e in enumerate(sspls[0]) if i not in filter_idx]
-#    final_dists = [e for i, e in enumerate(final_dists[0]) if i not in filter_idx]
-#    actions = [e for i, e in enumerate(actions[0]) if i not in filter_idx]
-#    collisions = [e for i, e in enumerate(collisions[0]) if i not in filter_idx]
-#    stops = [e for i, e in enumerate(stops[0]) if i not in filter_idx]
-#    agent_ep_dists = [e for i, e in enumerate(agent_ep_dists[0]) if i not in filter_idx]
-#    print('after filter: ', len(successes))
-
+    print('idx: ', filename.split('.txt')[0].split('_')[-3], 'spl: ', np.mean(spls), 'succ: ', np.mean(successes))
+    gan_idx.append(filename.split('.txt')[0].split('_')[-3])
     all_successes.append(np.mean(successes))
     all_spls.append(np.mean(spls))
-    all_std_spls.append(np.std(spls)/np.sqrt(len(spls)))
     all_sspls.append(np.mean(sspls))
     all_fdg.append(np.mean(final_dists))
     all_actions.append(np.mean(actions))
@@ -94,40 +68,45 @@ for filename in txt_files:
 # print('avg stop: ', np.mean(stops))
 # print('avg agent_ep_dists: ', np.mean(agent_ep_dists))
 
-print('#### std spl ####' )
-for a in all_std_spls:
-    print(a)
-print('')
 
+print(all_successes, gan_idx)
+print(all_spls, gan_idx)
+print('success: ')
+print([x for y,x in sorted(zip(all_successes, gan_idx))][::-1])
+print([y for y,x in sorted(zip(all_successes, gan_idx))][::-1])
+print('spl: ')
+print([x for y,x in sorted(zip(all_spls, gan_idx))][::-1])
+print([y for y,x in sorted(zip(all_spls, gan_idx))][::-1])
 
-print('#### success ####' )
-for a in all_successes:
-    print(a)
-print('')
-print('#### spl ####' )
-for a in all_spls:
-    print(a)
-print('')
-print('#### soft spl ####' )
-for a in all_sspls:
-    print(a)
-print('')
-print('#### final dist to goal ####' )
-for a in all_fdg:
-    print(a)
-print('')
-print('#### actions ####' )
-for a in all_actions:
-    print(a)
-print('')
-print('#### collisions ####' )
-for a in all_collisions:
-    print(a)
-print('')
-print('#### stop ####' )
-for a in all_stop:
-    print(a)
-print('')
-print('#### agent ep dist ####' )
-for a in all_aed:
-    print(a)
+#print('#### success ####' )
+#for a in all_successes:
+#    print(a)
+#print('')
+#print('#### spl ####' )
+#for a in all_spls:
+#    print(a)
+#print('')
+#print('#### soft spl ####' )
+#for a in all_sspls:
+#    print(a)
+#print('')
+#print('#### final dist to goal ####' )
+#for a in all_fdg:
+#    print(a)
+#print('')
+#print('#### actions ####' )
+#for a in all_actions:
+#    print(a)
+#print('')
+#print('#### collisions ####' )
+#for a in all_collisions:
+#    print(a)
+#print('')
+#print('#### stop ####' )
+#for a in all_stop:
+#    print(a)
+#print('')
+#print('#### agent ep dist ####' )
+#for a in all_aed:
+#    print(a)
+
