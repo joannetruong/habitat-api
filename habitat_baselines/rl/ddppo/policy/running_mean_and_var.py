@@ -5,32 +5,35 @@
 # LICENSE file in the root directory of this source tree.
 
 import torch
-import torch.distributed as distrib
-import torch.nn as nn
-import torch.nn.functional as F
+from torch import Tensor
+from torch import distributed as distrib
+from torch import nn as nn
+from torch.nn import functional as F
 
 
 class RunningMeanAndVar(nn.Module):
-    def __init__(self, n_channels):
+    def __init__(self, n_channels: int) -> None:
         super().__init__()
         self.register_buffer("_mean", torch.zeros(1, n_channels, 1, 1))
         self.register_buffer("_var", torch.zeros(1, n_channels, 1, 1))
         self.register_buffer("_count", torch.zeros(()))
-
+        self._mean: torch.Tensor = self._mean
+        self._var: torch.Tensor = self._var
+        self._count: torch.Tensor = self._count
         self._distributed = distrib.is_initialized()
 
-    def forward(self, x):
+    def forward(self, x: Tensor) -> Tensor:
         if self.training:
-            new_mean = F.adaptive_avg_pool2d(x, 1).sum(0, keepdim=True)
+            new_mean = F.adaptive_avg_pool2d(x, 1).sum(0, keepdim=True)  # type: ignore
             new_count = torch.full_like(self._count, x.size(0))
 
             if self._distributed:
                 distrib.all_reduce(new_mean)
                 distrib.all_reduce(new_count)
 
-            new_mean /= new_count
+            new_mean = new_mean / new_count
 
-            new_var = F.adaptive_avg_pool2d((x - new_mean).pow(2), 1).sum(
+            new_var = F.adaptive_avg_pool2d((x - new_mean).pow(2), 1).sum(  # type: ignore
                 0, keepdim=True
             )
 
@@ -39,7 +42,7 @@ class RunningMeanAndVar(nn.Module):
 
             # No - 1 on all the variance as the number of pixels
             # seen over training is simply absurd, so it doesn't matter
-            new_var /= new_count
+            new_var = new_var / new_count
 
             m_a = self._var * (self._count)
             m_b = new_var * (new_count)

@@ -8,13 +8,12 @@ r"""Implements tasks and measurements needed for training and benchmarking of
 """
 
 from collections import OrderedDict
-from typing import Any, Dict, Iterable, List, Optional, Type, Union
+from typing import Any, Dict, Iterable, List, Optional, Union
 
 import numpy as np
 
 from habitat.config import Config
 from habitat.core.dataset import Dataset, Episode
-from habitat.core.registry import registry
 from habitat.core.simulator import Observations, SensorSuite, Simulator
 from habitat.core.spaces import ActionSpace, EmptySpace, Space
 
@@ -50,8 +49,7 @@ class Action:
 
     @property
     def action_space(self) -> Space:
-        r"""a current Action's action space.
-        """
+        r"""a current Action's action space."""
         raise NotImplementedError
 
 
@@ -74,8 +72,7 @@ class SimulatorTaskAction(Action):
         return None
 
     def step(self, *args: Any, **kwargs: Any) -> Observations:
-        r"""Step method is called from ``Env`` on each ``step``.
-        """
+        r"""Step method is called from ``Env`` on each ``step``."""
         raise NotImplementedError
 
 
@@ -126,8 +123,7 @@ class Measure:
 
 
 class Metrics(dict):
-    r"""Dictionary containing measurements.
-    """
+    r"""Dictionary containing measurements."""
 
     def __init__(self, measures: Dict[str, Measure]) -> None:
         """Constructor
@@ -230,6 +226,8 @@ class EmbodiedTask:
     def __init__(
         self, config: Config, sim: Simulator, dataset: Optional[Dataset] = None
     ) -> None:
+        from habitat.core.registry import registry
+
         self._config = config
         self._sim = sim
         self._dataset = dataset
@@ -278,7 +276,7 @@ class EmbodiedTask:
             )
         return entities
 
-    def reset(self, episode: Type[Episode]):
+    def reset(self, episode: Episode):
         observations = self._sim.reset()
         observations.update(
             self.sensor_suite.get_observations(
@@ -291,7 +289,7 @@ class EmbodiedTask:
 
         return observations
 
-    def step(self, action: Union[int, Dict[str, Any]], episode: Type[Episode]):
+    def step(self, action: Dict[str, Any], episode: Episode):
         if "action_args" not in action or action["action_args"] is None:
             action["action_args"] = {}
         action_name = action["action"]
@@ -320,7 +318,7 @@ class EmbodiedTask:
 
     def get_action_name(self, action_index: int):
         if action_index >= len(self.actions):
-            raise ValueError(f"Action index '{action}' is out of range.")
+            raise ValueError(f"Action index '{action_index}' is out of range.")
         return self._action_keys[action_index]
 
     @property
@@ -333,7 +331,7 @@ class EmbodiedTask:
         )
 
     def overwrite_sim_config(
-        self, sim_config: Config, episode: Type[Episode]
+        self, sim_config: Config, episode: Episode
     ) -> Config:
         r"""Update config merging information from :p:`sim_config` and
         :p:`episode`.
@@ -347,7 +345,7 @@ class EmbodiedTask:
         self,
         *args: Any,
         action: Union[int, Dict[str, Any]],
-        episode: Type[Episode],
+        episode: Episode,
         **kwargs: Any,
     ) -> bool:
         raise NotImplementedError

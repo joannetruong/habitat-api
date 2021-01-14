@@ -7,7 +7,7 @@
 import os
 import time
 from collections import defaultdict, deque
-from typing import Any, Dict, List, Optional
+from typing import Any, DefaultDict, Dict, List, Optional
 
 import numpy as np
 import torch
@@ -15,19 +15,25 @@ import tqdm
 from torch.optim.lr_scheduler import LambdaLR
 
 from habitat import Config, logger
+from habitat.utils import profiling_wrapper
 from habitat.utils.visualizations.utils import observations_to_image
 from habitat_baselines.common.base_trainer import BaseRLTrainer
 from habitat_baselines.common.baseline_registry import baseline_registry
-from habitat_baselines.common.env_utils import construct_envs
 from habitat_baselines.common.environments import get_env_class
+from habitat_baselines.common.obs_transformers import (
+    apply_obs_transforms_batch,
+    apply_obs_transforms_obs_space,
+    get_active_obs_transforms,
+)
 from habitat_baselines.common.rollout_storage import RolloutStorage
 from habitat_baselines.common.tensorboard_utils import TensorboardWriter
-from habitat_baselines.common.utils import (
+from habitat_baselines.rl.ppo import PPO
+from habitat_baselines.utils.common import (
     batch_obs,
     generate_video,
     linear_decay,
 )
-from habitat_baselines.rl.ppo import PPO, PointNavBaselinePolicy
+from habitat_baselines.utils.env_utils import construct_envs
 
 
 @baseline_registry.register_trainer(name="ppo")
@@ -42,6 +48,7 @@ class PPOTrainer(BaseRLTrainer):
         self.actor_critic = None
         self.agent = None
         self.envs = None
+        self.obs_transforms = []
         if config is not None:
             logger.info(f"config: {config}")
 
@@ -59,10 +66,15 @@ class PPOTrainer(BaseRLTrainer):
         """
         logger.add_filehandler(self.config.LOG_FILE)
 
-        self.actor_critic = PointNavBaselinePolicy(
-            observation_space=self.envs.observation_spaces[0],
-            action_space=self.envs.action_spaces[0],
-            hidden_size=ppo_cfg.hidden_size,
+        policy = baseline_registry.get_policy(self.config.RL.POLICY.name)
+        observation_space = self.envs.observation_spaces[0]
+        self.obs_transforms = get_active_obs_transforms(self.config)
+        observation_space = apply_obs_transforms_obs_space(
+            observation_space, self.obs_transforms
+        )
+        self.obs_space = observation_space
+        self.actor_critic = policy.from_config(
+            self.config, observation_space, self.envs.action_spaces[0]
         )
         self.actor_critic.to(self.device)
 
@@ -79,6 +91,7 @@ class PPOTrainer(BaseRLTrainer):
             use_normalized_advantage=ppo_cfg.use_normalized_advantage,
         )
 
+    @profiling_wrapper.RangeContext("save_checkpoint")
     def save_checkpoint(
         self, file_name: str, extra_state: Optional[Dict] = None
     ) -> None:
@@ -154,6 +167,7 @@ class PPOTrainer(BaseRLTrainer):
 
         return results
 
+    @profiling_wrapper.RangeContext("_collect_rollout_step")
     def _collect_rollout_step(
         self, rollouts, current_episode_reward, running_episode_stats
     ):
@@ -167,6 +181,7 @@ class PPOTrainer(BaseRLTrainer):
                 k: v[rollouts.step] for k, v in rollouts.observations.items()
             }
 
+            profiling_wrapper.range_push("compute actions")
             (
                 values,
                 actions,
@@ -182,16 +197,27 @@ class PPOTrainer(BaseRLTrainer):
         pth_time += time.time() - t_sample_action
 
         t_step_env = time.time()
+        # NB: Move actions to CPU.  If CUDA tensors are
+        # sent in to env.step(), that will create CUDA contexts
+        # in the subprocesses.
+        # For backwards compatibility, we also call .item() to convert to
+        # an int
+        step_data = [a.item() for a in actions.to(device="cpu")]
+        profiling_wrapper.range_pop()  # compute actions
 
-        outputs = self.envs.step([a[0].item() for a in actions])
-        observations, rewards, dones, infos = [list(x) for x in zip(*outputs)]
+        outputs = self.envs.step(step_data)
+        observations, rewards_l, dones, infos = [
+            list(x) for x in zip(*outputs)
+        ]
 
         env_time += time.time() - t_step_env
 
         t_update_stats = time.time()
         batch = batch_obs(observations, device=self.device)
+        batch = apply_obs_transforms_batch(batch, self.obs_transforms)
+
         rewards = torch.tensor(
-            rewards, dtype=torch.float, device=current_episode_reward.device
+            rewards_l, dtype=torch.float, device=current_episode_reward.device
         )
         rewards = rewards.unsqueeze(1)
 
@@ -202,18 +228,18 @@ class PPOTrainer(BaseRLTrainer):
         )
 
         current_episode_reward += rewards
-        running_episode_stats["reward"] += (1 - masks) * current_episode_reward
-        running_episode_stats["count"] += 1 - masks
-        for k, v in self._extract_scalars_from_infos(infos).items():
+        running_episode_stats["reward"] += (1 - masks) * current_episode_reward  # type: ignore
+        running_episode_stats["count"] += 1 - masks  # type: ignore
+        for k, v_k in self._extract_scalars_from_infos(infos).items():
             v = torch.tensor(
-                v, dtype=torch.float, device=current_episode_reward.device
+                v_k, dtype=torch.float, device=current_episode_reward.device
             ).unsqueeze(1)
             if k not in running_episode_stats:
                 running_episode_stats[k] = torch.zeros_like(
                     running_episode_stats["count"]
                 )
 
-            running_episode_stats[k] += (1 - masks) * v
+            running_episode_stats[k] += (1 - masks) * v  # type: ignore
 
         current_episode_reward *= masks
 
@@ -235,6 +261,7 @@ class PPOTrainer(BaseRLTrainer):
 
         return pth_time, env_time, self.envs.num_envs
 
+    @profiling_wrapper.RangeContext("_update_agent")
     def _update_agent(self, ppo_cfg, rollouts):
         t_update_model = time.time()
         with torch.no_grad():
@@ -263,12 +290,18 @@ class PPOTrainer(BaseRLTrainer):
             dist_entropy,
         )
 
+    @profiling_wrapper.RangeContext("train")
     def train(self) -> None:
         r"""Main method for training PPO.
 
         Returns:
             None
         """
+
+        profiling_wrapper.configure(
+            capture_start_step=self.config.PROFILING.CAPTURE_START_STEP,
+            num_steps_to_capture=self.config.PROFILING.NUM_STEPS_TO_CAPTURE,
+        )
 
         self.envs = construct_envs(
             self.config, get_env_class(self.config.ENV_NAME)
@@ -292,7 +325,7 @@ class PPOTrainer(BaseRLTrainer):
         rollouts = RolloutStorage(
             ppo_cfg.num_steps,
             self.envs.num_envs,
-            self.envs.observation_spaces[0],
+            self.obs_space,
             self.envs.action_spaces[0],
             ppo_cfg.hidden_size,
         )
@@ -300,6 +333,7 @@ class PPOTrainer(BaseRLTrainer):
 
         observations = self.envs.reset()
         batch = batch_obs(observations, device=self.device)
+        batch = apply_obs_transforms_batch(batch, self.obs_transforms)
 
         for sensor in rollouts.observations:
             rollouts.observations[sensor][0].copy_(batch[sensor])
@@ -315,7 +349,7 @@ class PPOTrainer(BaseRLTrainer):
             count=torch.zeros(self.envs.num_envs, 1),
             reward=torch.zeros(self.envs.num_envs, 1),
         )
-        window_episode_stats = defaultdict(
+        window_episode_stats: DefaultDict[str, deque] = defaultdict(
             lambda: deque(maxlen=ppo_cfg.reward_window_size)
         )
 
@@ -327,22 +361,26 @@ class PPOTrainer(BaseRLTrainer):
 
         lr_scheduler = LambdaLR(
             optimizer=self.agent.optimizer,
-            lr_lambda=lambda x: linear_decay(x, self.config.NUM_UPDATES),
+            lr_lambda=lambda x: linear_decay(x, self.config.NUM_UPDATES),  # type: ignore
         )
 
         with TensorboardWriter(
             self.config.TENSORBOARD_DIR, flush_secs=self.flush_secs
         ) as writer:
             for update in range(self.config.NUM_UPDATES):
+                profiling_wrapper.on_start_step()
+                profiling_wrapper.range_push("train update")
+
                 if ppo_cfg.use_linear_lr_decay:
-                    lr_scheduler.step()
+                    lr_scheduler.step()  # type: ignore
 
                 if ppo_cfg.use_linear_clip_decay:
                     self.agent.clip_param = ppo_cfg.clip_param * linear_decay(
                         update, self.config.NUM_UPDATES
                     )
 
-                for step in range(ppo_cfg.num_steps):
+                profiling_wrapper.range_push("rollouts loop")
+                for _step in range(ppo_cfg.num_steps):
                     (
                         delta_pth_time,
                         delta_env_time,
@@ -353,6 +391,7 @@ class PPOTrainer(BaseRLTrainer):
                     pth_time += delta_pth_time
                     env_time += delta_env_time
                     count_steps += delta_steps
+                profiling_wrapper.range_pop()  # rollouts loop
 
                 (
                     delta_pth_time,
@@ -429,6 +468,8 @@ class PPOTrainer(BaseRLTrainer):
                     )
                     count_checkpoints += 1
 
+                profiling_wrapper.range_pop()  # train update
+
             self.envs.close()
 
     def _eval_checkpoint(
@@ -476,6 +517,7 @@ class PPOTrainer(BaseRLTrainer):
 
         observations = self.envs.reset()
         batch = batch_obs(observations, device=self.device)
+        batch = apply_obs_transforms_batch(batch, self.obs_transforms)
 
         current_episode_reward = torch.zeros(
             self.envs.num_envs, 1, device=self.device
@@ -493,7 +535,9 @@ class PPOTrainer(BaseRLTrainer):
         not_done_masks = torch.zeros(
             self.config.NUM_PROCESSES, 1, device=self.device
         )
-        stats_episodes = dict()  # dict of dicts that stores stats per episode
+        stats_episodes: Dict[
+            Any, Any
+        ] = {}  # dict of dicts that stores stats per episode
 
         rgb_frames = [
             [] for _ in range(self.config.NUM_PROCESSES)
@@ -536,14 +580,22 @@ class PPOTrainer(BaseRLTrainer):
                     deterministic=False,
                 )
 
-                prev_actions.copy_(actions)
+                prev_actions.copy_(actions)  # type: ignore
 
-            outputs = self.envs.step([a[0].item() for a in actions])
+            # NB: Move actions to CPU.  If CUDA tensors are
+            # sent in to env.step(), that will create CUDA contexts
+            # in the subprocesses.
+            # For backwards compatibility, we also call .item() to convert to
+            # an int
+            step_data = [a.item() for a in actions.to(device="cpu")]
 
-            observations, rewards, dones, infos = [
+            outputs = self.envs.step(step_data)
+
+            observations, rewards_l, dones, infos = [
                 list(x) for x in zip(*outputs)
             ]
             batch = batch_obs(observations, device=self.device)
+            batch = apply_obs_transforms_batch(batch, self.obs_transforms)
 
             not_done_masks = torch.tensor(
                 [[0.0] if done else [1.0] for done in dones],
@@ -552,7 +604,7 @@ class PPOTrainer(BaseRLTrainer):
             )
 
             rewards = torch.tensor(
-                rewards, dtype=torch.float, device=self.device
+                rewards_l, dtype=torch.float, device=self.device
             ).unsqueeze(1)
             current_episode_reward += rewards
             next_episodes = self.envs.current_episodes()
@@ -568,7 +620,7 @@ class PPOTrainer(BaseRLTrainer):
                 # episode ended
                 if not_done_masks[i].item() == 0:
                     pbar.update()
-                    episode_stats = dict()
+                    episode_stats = {}
                     episode_stats["reward"] = current_episode_reward[i].item()
                     episode_stats.update(
                         self._extract_scalars_from_info(infos[i])
@@ -597,7 +649,10 @@ class PPOTrainer(BaseRLTrainer):
 
                 # episode continues
                 elif len(self.config.VIDEO_OPTION) > 0:
-                    frame = observations_to_image(observations[i], infos[i])
+                    # TODO move normalization / channel changing out of the policy and undo it here
+                    frame = observations_to_image(
+                        {k: v[i] for k, v in batch.items()}, infos[i]
+                    )
                     rgb_frames[i].append(frame)
 
             (
@@ -620,10 +675,10 @@ class PPOTrainer(BaseRLTrainer):
             )
 
         num_episodes = len(stats_episodes)
-        aggregated_stats = dict()
+        aggregated_stats = {}
         for stat_key in next(iter(stats_episodes.values())).keys():
             aggregated_stats[stat_key] = (
-                sum([v[stat_key] for v in stats_episodes.values()])
+                sum(v[stat_key] for v in stats_episodes.values())
                 / num_episodes
             )
 

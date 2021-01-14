@@ -20,12 +20,11 @@ class Agent:
     """
 
     def reset(self) -> None:
-        r"""Called before starting a new episode in environment.
-        """
+        r"""Called before starting a new episode in environment."""
         raise NotImplementedError
 
     def act(
-        self, observations: Observations
+        self, observations: "Observations"
     ) -> Union[int, str, Dict[str, Any]]:
         r"""Called to produce an action to perform in an environment.
 

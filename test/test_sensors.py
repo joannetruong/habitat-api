@@ -448,20 +448,20 @@ def test_noise_models_rgbd():
             - no_noise_obs[0]["rgb"].astype(np.float)
         ) > 1.5e-2 * np.linalg.norm(
             no_noise_obs[0]["rgb"].astype(np.float)
-        ), f"No RGB noise detected."
+        ), "No RGB noise detected."
 
         assert np.linalg.norm(
             obs["depth"].astype(np.float)
             - no_noise_obs[0]["depth"].astype(np.float)
         ) > 1.5e-2 * np.linalg.norm(
             no_noise_obs[0]["depth"].astype(np.float)
-        ), f"No Depth noise detected."
+        ), "No Depth noise detected."
 
         images = []
         state = env.sim.get_agent_state()
         angle_diffs = []
         pos_diffs = []
-        for step_id, action in enumerate(actions):
+        for action in actions:
             prev_state = state
             obs = env.step(action)
             state = env.sim.get_agent_state()

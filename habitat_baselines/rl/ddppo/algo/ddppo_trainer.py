@@ -8,23 +8,27 @@ import contextlib
 import os
 import random
 import time
-from collections import OrderedDict, defaultdict, deque
+from collections import defaultdict, deque
+from typing import DefaultDict, Optional
 
 import numpy as np
 import torch
-import torch.distributed as distrib
-import torch.nn as nn
 from gym import spaces
-from gym.spaces.dict_space import Dict as SpaceDict
+from torch import distributed as distrib
+from torch import nn as nn
 from torch.optim.lr_scheduler import LambdaLR
 
 from habitat import Config, logger
+from habitat.utils import profiling_wrapper
 from habitat_baselines.common.baseline_registry import baseline_registry
-from habitat_baselines.common.env_utils import construct_envs
 from habitat_baselines.common.environments import get_env_class
+from habitat_baselines.common.obs_transformers import (
+    apply_obs_transforms_batch,
+    apply_obs_transforms_obs_space,
+    get_active_obs_transforms,
+)
 from habitat_baselines.common.rollout_storage import RolloutStorage
 from habitat_baselines.common.tensorboard_utils import TensorboardWriter
-from habitat_baselines.common.utils import batch_obs, linear_decay
 from habitat_baselines.rl.ddppo.algo.ddp_utils import (
     EXIT,
     REQUEUE,
@@ -35,10 +39,12 @@ from habitat_baselines.rl.ddppo.algo.ddp_utils import (
     save_interrupted_state,
 )
 from habitat_baselines.rl.ddppo.algo.ddppo import DDPPO
-from habitat_baselines.rl.ddppo.policy.resnet_policy import (
+from habitat_baselines.rl.ddppo.policy.resnet_policy import (  # noqa: F401
     PointNavResNetPolicy,
 )
 from habitat_baselines.rl.ppo.ppo_trainer import PPOTrainer
+from habitat_baselines.utils.common import batch_obs, linear_decay
+from habitat_baselines.utils.env_utils import construct_envs
 
 
 @baseline_registry.register_trainer(name="ddppo")
@@ -51,7 +57,7 @@ class DDPPOTrainer(PPOTrainer):
     # max rollout length
     SHORT_ROLLOUT_THRESHOLD: float = 0.25
 
-    def __init__(self, config=None):
+    def __init__(self, config: Optional[Config] = None) -> None:
         interrupted_state = load_interrupted_state()
         if interrupted_state is not None:
             config = interrupted_state["config"]
@@ -69,16 +75,16 @@ class DDPPOTrainer(PPOTrainer):
         """
         logger.add_filehandler(self.config.LOG_FILE)
 
-        self.actor_critic = PointNavResNetPolicy(
-            observation_space=self.envs.observation_spaces[0],
-            action_space=self.envs.action_spaces[0],
-            hidden_size=ppo_cfg.hidden_size,
-            rnn_type=self.config.RL.DDPPO.rnn_type,
-            num_recurrent_layers=self.config.RL.DDPPO.num_recurrent_layers,
-            backbone=self.config.RL.DDPPO.backbone,
-            normalize_visual_inputs="rgb"
-            in self.envs.observation_spaces[0].spaces,
+        policy = baseline_registry.get_policy(self.config.RL.POLICY.name)
+        self.obs_transforms = get_active_obs_transforms(self.config)
+        observation_space = self.envs.observation_spaces[0]
+        observation_space = apply_obs_transforms_obs_space(
+            observation_space, self.obs_transforms
         )
+        self.actor_critic = policy.from_config(
+            self.config, observation_space, self.envs.action_spaces[0]
+        )
+        self.obs_space = observation_space
         self.actor_critic.to(self.device)
 
         if (
@@ -128,6 +134,7 @@ class DDPPOTrainer(PPOTrainer):
             use_normalized_advantage=ppo_cfg.use_normalized_advantage,
         )
 
+    @profiling_wrapper.RangeContext("train")
     def train(self) -> None:
         r"""Main method for DD-PPO.
 
@@ -138,6 +145,11 @@ class DDPPOTrainer(PPOTrainer):
             self.config.RL.DDPPO.distrib_backend
         )
         add_signal_handlers()
+
+        profiling_wrapper.configure(
+            capture_start_step=self.config.PROFILING.CAPTURE_START_STEP,
+            num_steps_to_capture=self.config.PROFILING.NUM_STEPS_TO_CAPTURE,
+        )
 
         # Stores the number of workers that have finished their rollout
         num_rollouts_done_store = distrib.PrefixStore(
@@ -168,7 +180,9 @@ class DDPPOTrainer(PPOTrainer):
             self.device = torch.device("cpu")
 
         self.envs = construct_envs(
-            self.config, get_env_class(self.config.ENV_NAME)
+            self.config,
+            get_env_class(self.config.ENV_NAME),
+            workers_ignore_signals=True,
         )
 
         ppo_cfg = self.config.RL.PPO
@@ -194,11 +208,12 @@ class DDPPOTrainer(PPOTrainer):
 
         observations = self.envs.reset()
         batch = batch_obs(observations, device=self.device)
+        batch = apply_obs_transforms_batch(batch, self.obs_transforms)
 
-        obs_space = self.envs.observation_spaces[0]
+        obs_space = self.obs_space
         if self._static_encoder:
             self._encoder = self.actor_critic.net.visual_encoder
-            obs_space = SpaceDict(
+            obs_space = spaces.Dict(
                 {
                     "visual_features": spaces.Box(
                         low=np.finfo(np.float32).min,
@@ -238,21 +253,21 @@ class DDPPOTrainer(PPOTrainer):
             count=torch.zeros(self.envs.num_envs, 1, device=self.device),
             reward=torch.zeros(self.envs.num_envs, 1, device=self.device),
         )
-        window_episode_stats = defaultdict(
+        window_episode_stats: DefaultDict[str, deque] = defaultdict(
             lambda: deque(maxlen=ppo_cfg.reward_window_size)
         )
 
         t_start = time.time()
         env_time = 0
         pth_time = 0
-        count_steps = 0
+        count_steps: float = 0
         count_checkpoints = 0
         start_update = 0
         prev_time = 0
 
         lr_scheduler = LambdaLR(
             optimizer=self.agent.optimizer,
-            lr_lambda=lambda x: linear_decay(x, self.config.NUM_UPDATES),
+            lr_lambda=lambda x: linear_decay(x, self.config.NUM_UPDATES),  # type: ignore
         )
 
         interrupted_state = load_interrupted_state()
@@ -279,8 +294,11 @@ class DDPPOTrainer(PPOTrainer):
             else contextlib.suppress()
         ) as writer:
             for update in range(start_update, self.config.NUM_UPDATES):
+                profiling_wrapper.on_start_step()
+                profiling_wrapper.range_push("train update")
+
                 if ppo_cfg.use_linear_lr_decay:
-                    lr_scheduler.step()
+                    lr_scheduler.step()  # type: ignore
 
                 if ppo_cfg.use_linear_clip_decay:
                     self.agent.clip_param = ppo_cfg.clip_param * linear_decay(
@@ -288,6 +306,8 @@ class DDPPOTrainer(PPOTrainer):
                     )
 
                 if EXIT.is_set():
+                    profiling_wrapper.range_pop()  # train update
+
                     self.envs.close()
 
                     if REQUEUE.is_set() and self.world_rank == 0:
@@ -314,6 +334,7 @@ class DDPPOTrainer(PPOTrainer):
 
                 count_steps_delta = 0
                 self.agent.eval()
+                profiling_wrapper.range_push("rollouts loop")
                 for step in range(ppo_cfg.num_steps):
 
                     (
@@ -336,6 +357,7 @@ class DDPPOTrainer(PPOTrainer):
                         self.config.RL.DDPPO.sync_frac * self.world_size
                     ):
                         break
+                profiling_wrapper.range_pop()  # rollouts loop
 
                 num_rollouts_done_store.add("num_done", 1)
 
@@ -351,7 +373,7 @@ class DDPPOTrainer(PPOTrainer):
                 ) = self._update_agent(ppo_cfg, rollouts)
                 pth_time += delta_pth_time
 
-                stats_ordering = list(sorted(running_episode_stats.keys()))
+                stats_ordering = sorted(running_episode_stats.keys())
                 stats = torch.stack(
                     [running_episode_stats[k] for k in stats_ordering], 0
                 )
@@ -440,5 +462,7 @@ class DDPPOTrainer(PPOTrainer):
                             dict(step=count_steps),
                         )
                         count_checkpoints += 1
+
+                profiling_wrapper.range_pop()  # train update
 
             self.envs.close()

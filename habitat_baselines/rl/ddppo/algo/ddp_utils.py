@@ -1,14 +1,14 @@
 import os
-import os.path as osp
 import shlex
 import signal
 import subprocess
 import threading
+from os import path as osp
 from typing import Any, Optional, Tuple
 
 import ifcfg
 import torch
-import torch.distributed as distrib
+from torch import distributed as distrib
 
 from habitat import logger
 
@@ -40,7 +40,7 @@ def _requeue_handler(signal, frame):
     REQUEUE.set()
 
 
-def add_signal_handlers():
+def add_signal_handlers() -> None:
     signal.signal(signal.SIGINT, _clean_exit_handler)
     signal.signal(signal.SIGTERM, _clean_exit_handler)
 
@@ -96,8 +96,7 @@ def load_interrupted_state(filename: str = None) -> Optional[Any]:
 
 
 def requeue_job():
-    r"""Requeues the job by calling ``scontrol requeue ${SLURM_JOBID}``
-    """
+    r"""Requeues the job by calling ``scontrol requeue ${SLURM_JOBID}``"""
     if SLURM_JOBID is None:
         return
 
@@ -111,13 +110,13 @@ def requeue_job():
         subprocess.check_call(shlex.split(f"scontrol requeue {SLURM_JOBID}"))
 
 
-def get_ifname():
+def get_ifname() -> str:
     return ifcfg.default_interface()["device"]
 
 
 def init_distrib_slurm(
     backend: str = "nccl",
-) -> Tuple[int, torch.distributed.TCPStore]:
+) -> Tuple[int, torch.distributed.TCPStore]:  # type: ignore
     r"""Initializes torch.distributed by parsing environment variables set
         by SLURM when ``srun`` is used or by parsing environment variables set
         by torch.distributed.launch
@@ -156,7 +155,7 @@ def init_distrib_slurm(
         world_rank = 0
         world_size = 1
 
-    tcp_store = distrib.TCPStore(
+    tcp_store = distrib.TCPStore(  # type: ignore
         master_addr, master_port, world_size, world_rank == 0
     )
     distrib.init_process_group(

@@ -19,11 +19,10 @@ from habitat.core.env import Env
 
 
 class Benchmark:
-    r"""Benchmark for evaluating agents in environments.
-    """
+    r"""Benchmark for evaluating agents in environments."""
 
     def __init__(
-        self, config_paths: Optional[str] = None, eval_remote=False
+        self, config_paths: Optional[str] = None, eval_remote: bool = False
     ) -> None:
         r"""..
 
@@ -39,16 +38,17 @@ class Benchmark:
             self._env = Env(config=config_env)
 
     def remote_evaluate(
-        self, agent: Agent, num_episodes: Optional[int] = None
+        self, agent: "Agent", num_episodes: Optional[int] = None
     ):
         # The modules imported below are specific to habitat-challenge remote evaluation.
-        # These modules are not part of the habitat-api repository.
-        import evaluation_pb2
-        import evaluation_pb2_grpc
-        import evalai_environment_habitat
-        import grpc
+        # These modules are not part of the habitat-lab repository.
         import pickle
         import time
+
+        import evalai_environment_habitat  # noqa: F401
+        import evaluation_pb2
+        import evaluation_pb2_grpc
+        import grpc
 
         time.sleep(60)
 
@@ -113,7 +113,9 @@ class Benchmark:
 
         return avg_metrics
 
-    def local_evaluate(self, agent: Agent, num_episodes: Optional[int] = None):
+    def local_evaluate(
+        self, agent: "Agent", num_episodes: Optional[int] = None
+    ) -> Dict[str, float]:
         if num_episodes is None:
             num_episodes = len(self._env.episodes)
         else:
@@ -147,7 +149,7 @@ class Benchmark:
         return avg_metrics
 
     def evaluate(
-        self, agent: Agent, num_episodes: Optional[int] = None
+        self, agent: "Agent", num_episodes: Optional[int] = None
     ) -> Dict[str, float]:
         r"""..
 

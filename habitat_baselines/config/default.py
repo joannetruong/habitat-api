@@ -37,6 +37,7 @@ _C.NUM_UPDATES = 10000
 _C.LOG_INTERVAL = 10
 _C.LOG_FILE = "train.log"
 _C.CHECKPOINT_INTERVAL = 50
+_C.FORCE_BLIND_POLICY = False
 # -----------------------------------------------------------------------------
 # EVAL CONFIG
 # -----------------------------------------------------------------------------
@@ -50,18 +51,47 @@ _C.EVAL.USE_CKPT_CONFIG = True
 _C.RL = CN()
 _C.RL.REWARD_MEASURE = "distance_to_goal"
 _C.RL.SUCCESS_MEASURE = "spl"
-_C.RL.SUCCESS_REWARD = 10.0
+_C.RL.SUCCESS_REWARD = 2.5
 _C.RL.SLACK_REWARD = -0.01
+# -----------------------------------------------------------------------------
+# POLICY CONFIG
+# -----------------------------------------------------------------------------
+_C.RL.POLICY = CN()
+_C.RL.POLICY.name = "PointNavResNetPolicy"
+# -----------------------------------------------------------------------------
+# OBS_TRANSFORMS CONFIG
+# -----------------------------------------------------------------------------
+_C.RL.POLICY.OBS_TRANSFORMS = CN()
+_C.RL.POLICY.OBS_TRANSFORMS.ENABLED_TRANSFORMS = tuple()
+_C.RL.POLICY.OBS_TRANSFORMS.CENTER_CROPPER = CN()
+_C.RL.POLICY.OBS_TRANSFORMS.CENTER_CROPPER.HEIGHT = 256
+_C.RL.POLICY.OBS_TRANSFORMS.CENTER_CROPPER.WIDTH = 256
+_C.RL.POLICY.OBS_TRANSFORMS.RESIZE_SHORTEST_EDGE = CN()
+_C.RL.POLICY.OBS_TRANSFORMS.RESIZE_SHORTEST_EDGE.SIZE = 256
+_C.RL.POLICY.OBS_TRANSFORMS.CUBE2EQ = CN()
+_C.RL.POLICY.OBS_TRANSFORMS.CUBE2EQ.HEIGHT = 256
+_C.RL.POLICY.OBS_TRANSFORMS.CUBE2EQ.WIDTH = 512
+_C.RL.POLICY.OBS_TRANSFORMS.CUBE2EQ.SENSOR_UUIDS = list()
+_C.RL.POLICY.OBS_TRANSFORMS.CUBE2FISH = CN()
+_C.RL.POLICY.OBS_TRANSFORMS.CUBE2FISH.HEIGHT = 256
+_C.RL.POLICY.OBS_TRANSFORMS.CUBE2FISH.WIDTH = 256
+_C.RL.POLICY.OBS_TRANSFORMS.CUBE2FISH.FOV = 180
+_C.RL.POLICY.OBS_TRANSFORMS.CUBE2FISH.PARAMS = (0.2, 0.2, 0.2)
+_C.RL.POLICY.OBS_TRANSFORMS.CUBE2FISH.SENSOR_UUIDS = list()
+_C.RL.POLICY.OBS_TRANSFORMS.EQ2CUBE = CN()
+_C.RL.POLICY.OBS_TRANSFORMS.EQ2CUBE.HEIGHT = 256
+_C.RL.POLICY.OBS_TRANSFORMS.EQ2CUBE.WIDTH = 256
+_C.RL.POLICY.OBS_TRANSFORMS.EQ2CUBE.SENSOR_UUIDS = list()
 # -----------------------------------------------------------------------------
 # PROXIMAL POLICY OPTIMIZATION (PPO)
 # -----------------------------------------------------------------------------
 _C.RL.PPO = CN()
 _C.RL.PPO.clip_param = 0.2
 _C.RL.PPO.ppo_epoch = 4
-_C.RL.PPO.num_mini_batch = 16
+_C.RL.PPO.num_mini_batch = 2
 _C.RL.PPO.value_loss_coef = 0.5
 _C.RL.PPO.entropy_coef = 0.01
-_C.RL.PPO.lr = 7e-4
+_C.RL.PPO.lr = 2.5e-4
 _C.RL.PPO.eps = 1e-5
 _C.RL.PPO.max_grad_norm = 0.5
 _C.RL.PPO.num_steps = 5
@@ -71,7 +101,7 @@ _C.RL.PPO.use_linear_clip_decay = False
 _C.RL.PPO.gamma = 0.99
 _C.RL.PPO.tau = 0.95
 _C.RL.PPO.reward_window_size = 50
-_C.RL.PPO.use_normalized_advantage = True
+_C.RL.PPO.use_normalized_advantage = False
 _C.RL.PPO.hidden_size = 512
 # -----------------------------------------------------------------------------
 # DECENTRALIZED DISTRIBUTED PROXIMAL POLICY OPTIMIZATION (DD-PPO)
@@ -79,9 +109,9 @@ _C.RL.PPO.hidden_size = 512
 _C.RL.DDPPO = CN()
 _C.RL.DDPPO.sync_frac = 0.6
 _C.RL.DDPPO.distrib_backend = "GLOO"
-_C.RL.DDPPO.rnn_type = "LSTM"
-_C.RL.DDPPO.num_recurrent_layers = 2
-_C.RL.DDPPO.backbone = "resnet50"
+_C.RL.DDPPO.rnn_type = "GRU"
+_C.RL.DDPPO.num_recurrent_layers = 1
+_C.RL.DDPPO.backbone = "resnet18"
 _C.RL.DDPPO.pretrained_weights = "data/ddppo-models/gibson-2plus-resnet50.pth"
 # Loads pretrained weights
 _C.RL.DDPPO.pretrained = False
@@ -120,6 +150,12 @@ _C.ORBSLAM2.NUM_ACTIONS = 3
 _C.ORBSLAM2.DIST_TO_STOP = 0.05
 _C.ORBSLAM2.PLANNER_MAX_STEPS = 500
 _C.ORBSLAM2.DEPTH_DENORM = get_task_config().SIMULATOR.DEPTH_SENSOR.MAX_DEPTH
+# -----------------------------------------------------------------------------
+# PROFILING
+# -----------------------------------------------------------------------------
+_C.PROFILING = CN()
+_C.PROFILING.CAPTURE_START_STEP = -1
+_C.PROFILING.NUM_STEPS_TO_CAPTURE = -1
 
 
 def get_config(
